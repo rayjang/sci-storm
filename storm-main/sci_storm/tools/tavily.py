@@ -17,22 +17,24 @@ class TavilySearchClient:
         if not self.api_key:
             return "Tavily API key not configured; skipping live search."
 
-        response = requests.post(
-            "https://api.tavily.com/search",
-            json={"query": query, "max_results": self.max_results},
-            headers={"Content-Type": "application/json", "X-API-Key": self.api_key},
-            timeout=30,
-        )
-        if not response.ok:
-            return f"Tavily search failed: {response.text}"
+        try:
+            response = requests.post(
+                "https://api.tavily.com/search",
+                json={"query": query, "max_results": self.max_results},
+                headers={"Content-Type": "application/json", "X-API-Key": self.api_key},
+                timeout=30,
+            )
+            if not response.ok:
+                return f"Tavily search failed: {response.text}"
 
-        data = response.json()
-        results = data.get("results", [])
-        formatted = []
-        for item in results:
-            title = item.get("title", "untitled")
-            url = item.get("url", "")
-            content = item.get("content", "")
-            formatted.append(f"- {title} ({url})\n{content}")
-        return "\n".join(formatted)
-
+            data = response.json()
+            results = data.get("results", [])
+            formatted = []
+            for item in results:
+                title = item.get("title", "untitled")
+                url = item.get("url", "")
+                content = item.get("content", "")
+                formatted.append(f"- {title} ({url})\n{content}")
+            return "\n".join(formatted) if formatted else "Tavily search returned no results."
+        except Exception as exc:  # noqa: BLE001
+            return f"Tavily search unreachable; continuing without live search. ({exc})"

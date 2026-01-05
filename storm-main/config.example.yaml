@@ -1,6 +1,6 @@
 backend:
   provider: ollama
-  model: openai/gpt-oss-20b
+  model: gpt-oss:20b
   base_url: http://localhost:11434
   request_timeout: 120
   max_retries: 3

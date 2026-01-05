@@ -16,7 +16,7 @@ class BackendConfig:
     """Configuration for model backends."""
 
     provider: Literal["ollama", "vllm"] = "ollama"
-    model: str = "openai/gpt-oss-20b"
+    model: str = "gpt-oss:20b"
     base_url: str = "http://localhost:11434"
     api_key: Optional[str] = None
     request_timeout: int = 60
@@ -117,4 +117,3 @@ def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> AppConfig:
         rag=rag_config,
         mcp=mcp_config,
     )
-

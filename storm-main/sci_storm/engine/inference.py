@@ -22,6 +22,7 @@ class GenerationContext:
     goal: str
     document_style: str
     structural_requirements: str
+    outline_format_hint: Optional[str] = None
     outline: Optional[str] = None
     shared_notebook_uri: Optional[str] = None
     metadata: Dict[str, str] = field(default_factory=dict)
@@ -61,6 +62,7 @@ class InferenceEngine:
             f"Goal: {ctx.goal}\n"
             f"Document Style: {ctx.document_style}\n"
             f"Structural Requirements: {ctx.structural_requirements}\n"
+            f"Outline Format Hint: {ctx.outline_format_hint or 'None provided'}\n"
             f"Available Experts:\n{expert_block}\n"
             "Return a markdown outline with numbered sections and a short rationale "
             "for each section."
@@ -99,11 +101,41 @@ class InferenceEngine:
 
         evidence["tavily"] = self.search_client.search(query)
         rag_hits = self.rag_client.query(query)
-        evidence["rag"] = "\n".join(rag_hits)
+        evidence["rag"] = "\n".join(rag_hits) if rag_hits else "Local RAG returned no matches."
         return evidence
+
+    def collaborative_dialogue(
+        self,
+        topic: str,
+        human_feedback: str = "",
+        turns: int = 2,
+    ) -> List[str]:
+        """
+        Run a round-table style dialogue between experts, optionally seeded with human feedback.
+        """
+        history: List[str] = []
+        seeded_prompt = (
+            f"Topic: {topic}\nHuman feedback: {human_feedback or 'None provided.'}\n"
+            "Consider prior turns to refine or challenge earlier points. Keep replies concise."
+        )
+        last_message = seeded_prompt
+
+        for _ in range(turns):
+            for expert in self.expert_manager.experts:
+                prompt = (
+                    f"{expert.system_prompt}\n\n"
+                    f"Previous discussion:\n{last_message}\n\n"
+                    f"As {expert.name}, add, refine, or correct the discussion."
+                )
+                response = self.backend.generate(
+                    [{"role": "user", "content": prompt}]
+                )
+                turn_text = f"{expert.name}: {response.content}"
+                history.append(turn_text)
+                last_message = turn_text
+        return history
 
     def execute_experiment(self, hypothesis: str, code: str) -> str:
         """Use the KISTI MCP to run code and return the interpreted result."""
         run_info = self.mcp_client.run_experiment(hypothesis, code)
         return self.mcp_client.interpret_result(run_info)
-

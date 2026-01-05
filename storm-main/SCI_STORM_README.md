@@ -23,7 +23,7 @@ This guide explains how to stand up and run the **Sci-STORM** CLI for collaborat
    ```
 2. Pick your inference backend in `config.yaml`:
    - `backend.provider`: `ollama` (default) or `vllm`
-   - `backend.model`: e.g., `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, `naver-hyperclovax/HyperCLOVAX-SEED-Think-32B`
+   - `backend.model`: e.g., `gpt-oss:20b` (Ollama form), `openai/gpt-oss-120b`, `naver-hyperclovax/HyperCLOVAX-SEED-Think-32B`
    - `backend.base_url`: `http://localhost:11434` (Ollama) or your vLLM endpoint
 
 ## 3) Configure API keys
@@ -56,14 +56,14 @@ Place any `.md` or `.txt` references under `./data/`. They are auto-ingested int
 
 From the repo root:
 ```bash
-python -m sci_storm.pipeline.cli generate --config-path config.yaml
+python -m sci_storm.pipeline.cli generate --config-path config.yaml --output-path sci_storm_output.md
 ```
 
 The CLI will guide you through human-in-the-loop checkpoints:
-1. Confirm document style, research goal, and structural requirements.
+1. Confirm document style (freeform), research goal, structural requirements, and outline format hint.
 2. Review/extend the expert roster.
 3. Approve the collaboratively generated outline.
-4. Review the initial draft section synthesized from expert, Tavily, RAG, and MCP signals.
+4. Let experts debate across multiple dialogue rounds, inject human feedback, and synthesize a draft section from expert/Tavily/RAG/MCP evidence.
 
 You can rerun the command anytime after editing `config.yaml` or adding experts. Future iterations can extend section-by-section drafting using the same engine wiring.
 
