@@ -64,6 +64,7 @@ The CLI will guide you through human-in-the-loop checkpoints:
 2. Review/extend the expert roster.
 3. Approve the collaboratively generated outline.
 4. Let experts debate across multiple dialogue rounds, inject human feedback, and synthesize a draft section from expert/Tavily/RAG/MCP evidence.
+5. Save a consolidated report (goal, outline, dialogues, draft section) to the path you specify with `--output-path`.
 
 You can rerun the command anytime after editing `config.yaml` or adding experts. Future iterations can extend section-by-section drafting using the same engine wiring.
 
