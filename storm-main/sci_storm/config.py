@@ -48,10 +48,10 @@ class MCPConfig:
 
 @dataclass
 class AppConfig:
-    backend: BackendConfig = BackendConfig()
-    tavily: TavilyConfig = TavilyConfig()
-    rag: RagConfig = RagConfig()
-    mcp: MCPConfig = MCPConfig()
+    backend: BackendConfig = field(default_factory=BackendConfig)
+    tavily: TavilyConfig = field(default_factory=TavilyConfig)
+    rag: RagConfig = field(default_factory=RagConfig)
+    mcp: MCPConfig = field(default_factory=MCPConfig)
 
 
 def _load_yaml(path: Path) -> dict:
