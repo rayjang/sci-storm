@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Literal, Optional
 
 import requests
-from requests import RequestException
 
 from ..config import BackendConfig
 
@@ -41,9 +40,6 @@ class BaseBackendClient:
             try:
                 return fn()
             except BackendRetryableError as exc:  # pragma: no cover - loop only
-                last_error = exc
-                time.sleep(self.config.retry_backoff * attempt)
-            except RequestException as exc:
                 last_error = exc
                 time.sleep(self.config.retry_backoff * attempt)
         if last_error:
@@ -145,3 +141,4 @@ class BackendAdapter:
     ) -> BackendResponse:
         payload_messages = list(messages)
         return self.client.generate(payload_messages, temperature=temperature, **kwargs)
+

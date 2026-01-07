@@ -51,17 +51,6 @@ class InferenceEngine:
         self.rag_client = rag_client
         self.mcp_client = mcp_client
 
-    def _safe_generate(
-        self, messages, fallback: str = "Backend unavailable; skipping."
-    ) -> BackendResponse:
-        try:
-            return self.backend.generate(messages)
-        except Exception as exc:  # noqa: BLE001
-            return BackendResponse(
-                content=f"{fallback} Error: {exc}",
-                raw={"error": str(exc)},
-            )
-
     def generate_outline(self, ctx: GenerationContext) -> BackendResponse:
         expert_block = self.expert_manager.describe_team()
         system_prompt = (
@@ -78,10 +67,7 @@ class InferenceEngine:
             "Return a markdown outline with numbered sections and a short rationale "
             "for each section."
         )
-        return self._safe_generate(
-            _messages_from_prompt(system_prompt, user_prompt),
-            fallback="Outline generation failed.",
-        )
+        return self.backend.generate(_messages_from_prompt(system_prompt, user_prompt))
 
     def synthesize_section(
         self, ctx: GenerationContext, section_title: str, notes: Iterable[str]
@@ -99,21 +85,17 @@ class InferenceEngine:
             "Write a concise draft section in markdown. Use bullet points for "
             "experimental results and keep terminology precise."
         )
-        return self._safe_generate(
-            _messages_from_prompt(system_prompt, user_prompt),
-            fallback="Section synthesis failed.",
-        )
+        return self.backend.generate(_messages_from_prompt(system_prompt, user_prompt))
 
     def run_expert_round(self, query: str) -> Dict[str, str]:
         """Fan-out a question to the configured experts, Tavily, and the local RAG."""
         evidence: Dict[str, str] = {}
         for expert in self.expert_manager.experts:
-            response = self._safe_generate(
+            response = self.backend.generate(
                 _messages_from_prompt(
                     expert.system_prompt,
                     f"As {expert.name}, analyze: {query}. Return key facts.",
-                ),
-                fallback=f"{expert.name} unavailable.",
+                )
             )
             evidence[expert.name] = response.content
 
@@ -145,9 +127,8 @@ class InferenceEngine:
                     f"Previous discussion:\n{last_message}\n\n"
                     f"As {expert.name}, add, refine, or correct the discussion."
                 )
-                response = self._safe_generate(
-                    [{"role": "user", "content": prompt}],
-                    fallback=f"{expert.name} response unavailable.",
+                response = self.backend.generate(
+                    [{"role": "user", "content": prompt}]
                 )
                 turn_text = f"{expert.name}: {response.content}"
                 history.append(turn_text)
