@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Literal, Optional
 
 import requests
-from requests import RequestException
 
 from ..config import BackendConfig
 
@@ -29,15 +28,6 @@ class BaseBackendClient:
     def __init__(self, config: BackendConfig):
         self.config = config
 
-    def _wrap_result(self, fn) -> "BackendResponse":
-        try:
-            return self._retry_loop(fn)
-        except Exception as exc:  # noqa: BLE001
-            return BackendResponse(
-                content=f"[Backend error] {exc}",
-                raw={"error": str(exc)},
-            )
-
     @property
     def headers(self) -> Dict[str, str]:
         if self.config.api_key:
@@ -50,9 +40,6 @@ class BaseBackendClient:
             try:
                 return fn()
             except BackendRetryableError as exc:  # pragma: no cover - loop only
-                last_error = exc
-                time.sleep(self.config.retry_backoff * attempt)
-            except RequestException as exc:
                 last_error = exc
                 time.sleep(self.config.retry_backoff * attempt)
         if last_error:
@@ -88,7 +75,7 @@ class OllamaClient(BaseBackendClient):
             content = data.get("message", {}).get("content", "")
             return BackendResponse(content=content, raw=data)
 
-        return self._wrap_result(_request)
+        return self._retry_loop(_request)
 
 
 class VLLMClient(BaseBackendClient):
@@ -122,7 +109,7 @@ class VLLMClient(BaseBackendClient):
             )
             return BackendResponse(content=content, raw=data)
 
-        return self._wrap_result(_request)
+        return self._retry_loop(_request)
 
 
 class BackendAdapter:
@@ -154,3 +141,4 @@ class BackendAdapter:
     ) -> BackendResponse:
         payload_messages = list(messages)
         return self.client.generate(payload_messages, temperature=temperature, **kwargs)
+
