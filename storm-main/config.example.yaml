@@ -1,0 +1,23 @@
+backend:
+  provider: ollama
+  model: gpt-oss:20b
+  base_url: http://localhost:11434
+  request_timeout: 120
+  max_retries: 3
+  retry_backoff: 2.0
+
+tavily:
+  api_key: ${TAVILY_API_KEY}
+  max_results: 5
+
+rag:
+  provider: chromadb
+  persist_directory: ./data/index
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+
+mcp:
+  server_url: http://localhost:8000
+  startup_command: kisti-mcp serve --host 0.0.0.0 --port 8000
+  handshake_path: /health
+  max_retries: 3
+  retry_backoff: 2.0
