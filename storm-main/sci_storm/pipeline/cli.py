@@ -162,8 +162,23 @@ def generate(
     console.print(Panel(Markdown(section_response.content), title="Draft section"))
 
     if output_path:
-        output_path.write_text(section_response.content, encoding="utf-8")
-        console.print(f"Draft saved to [bold]{output_path}[/bold].")
+        transcript = [
+            "# Sci-STORM Session",
+            "",
+            f"## Goal",
+            goal,
+            "",
+            "## Outline",
+            outline_response.content,
+            "",
+            "## Expert Dialogues",
+            "\n".join(dialogue_notes) if dialogue_notes else "No dialogue rounds were recorded.",
+            "",
+            "## Draft Section",
+            section_response.content,
+        ]
+        output_path.write_text("\n".join(transcript), encoding="utf-8")
+        console.print(f"Draft (outline + dialogue + section) saved to [bold]{output_path}[/bold].")
 
     console.print("Review the draft above. Future steps will iterate section-by-section with the same workflow.")
 
