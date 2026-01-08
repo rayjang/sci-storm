@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from typing import Optional
 
 import typer
@@ -15,6 +16,12 @@ from ..engine import BackendAdapter, InferenceEngine
 from ..engine.inference import GenerationContext
 from ..tools import KISTIMCPClient, LocalRAGClient, TavilySearchClient
 
+
+try:
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 console = Console()
 app = typer.Typer(help="Sci-STORM: collaborative scientific authoring agent.")
@@ -145,7 +152,10 @@ def generate(
             topic=goal, human_feedback=human_note, turns=1
         )
         dialogue_notes.extend(dialogue)
-        console.print(Panel(Markdown("\n".join(dialogue)), title=f"Dialogue round {round_idx+1}"))
+        console.print(Panel(f"Expert dialogue round {round_idx+1} in progress", title="Live outputs"))
+        for line in dialogue:
+            console.print(Markdown(line))
+        console.print(Panel(Markdown("\n".join(dialogue)), title=f"Dialogue round {round_idx+1} (summary)"))
         if round_idx + 1 < dialogue_rounds and not Confirm.ask("Continue to next dialogue round?", default=True):
             break
 
