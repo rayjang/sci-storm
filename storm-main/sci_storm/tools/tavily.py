@@ -1,9 +1,24 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
+from dataclasses import dataclass
+from typing import List, Optional
 
 import requests
+
+
+@dataclass
+class TavilySource:
+    title: str
+    url: str
+    content: str
+
+
+@dataclass
+class TavilyResult:
+    query: str
+    sources: List[TavilySource]
+    error: Optional[str] = None
 
 
 class TavilySearchClient:
@@ -13,9 +28,13 @@ class TavilySearchClient:
         self.api_key = api_key or os.getenv("TAVILY_API_KEY")
         self.max_results = max_results
 
-    def search(self, query: str) -> str:
+    def search(self, query: str) -> TavilyResult:
         if not self.api_key:
-            return "Tavily API key not configured; skipping live search."
+            return TavilyResult(
+                query=query,
+                sources=[],
+                error="Tavily API key not configured; skipping live search.",
+            )
 
         try:
             response = requests.post(
@@ -25,16 +44,33 @@ class TavilySearchClient:
                 timeout=30,
             )
             if not response.ok:
-                return f"Tavily search failed: {response.text}"
+                return TavilyResult(
+                    query=query,
+                    sources=[],
+                    error=f"Tavily search failed: {response.text}",
+                )
 
             data = response.json()
             results = data.get("results", [])
-            formatted = []
+            sources = []
             for item in results:
-                title = item.get("title", "untitled")
-                url = item.get("url", "")
-                content = item.get("content", "")
-                formatted.append(f"- {title} ({url})\n{content}")
-            return "\n".join(formatted) if formatted else "Tavily search returned no results."
+                sources.append(
+                    TavilySource(
+                        title=item.get("title", "untitled"),
+                        url=item.get("url", ""),
+                        content=item.get("content", ""),
+                    )
+                )
+            if not sources:
+                return TavilyResult(
+                    query=query,
+                    sources=[],
+                    error="Tavily search returned no results.",
+                )
+            return TavilyResult(query=query, sources=sources)
         except Exception as exc:  # noqa: BLE001
-            return f"Tavily search unreachable; continuing without live search. ({exc})"
+            return TavilyResult(
+                query=query,
+                sources=[],
+                error=f"Tavily search unreachable; continuing without live search. ({exc})",
+            )

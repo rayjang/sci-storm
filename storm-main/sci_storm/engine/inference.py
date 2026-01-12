@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from ..agents.expert_manager import ExpertManager
 from ..tools.kisti_mcp import KISTIMCPClient
 from ..tools.rag import LocalRAGClient
-from ..tools.tavily import TavilySearchClient
+from ..tools.tavily import TavilyResult, TavilySearchClient
 from .backend import BackendAdapter, BackendResponse
 
 
@@ -23,6 +23,7 @@ class GenerationContext:
     document_style: str
     structural_requirements: str
     outline_format_hint: Optional[str] = None
+    output_language: Optional[str] = None
     outline: Optional[str] = None
     shared_notebook_uri: Optional[str] = None
     metadata: Dict[str, str] = field(default_factory=dict)
@@ -87,24 +88,29 @@ class InferenceEngine:
         self, ctx: GenerationContext, section_title: str, notes: Iterable[str]
     ) -> BackendResponse:
         sources = "\n".join(notes)
+        language = ctx.output_language or "the requested language"
         system_prompt = (
             "You are a lead author merging expert findings. Ground the response in "
-            "the provided notes and cite code execution outputs when available."
+            "the provided notes and cite code execution outputs when available. "
+            "Do not invent sources."
         )
         user_prompt = (
             f"Section: {section_title}\nGoal: {ctx.goal}\n"
             f"Document Style: {ctx.document_style}\n"
+            f"Output Language: {language}\n"
             f"Outline:\n{ctx.outline or 'N/A'}\n"
             f"Collected Evidence:\n{sources}\n"
-            "Write a concise draft section in markdown. Use bullet points for "
-            "experimental results and keep terminology precise."
+            "Write a cohesive draft section in markdown that follows the outline order "
+            "and uses a single consistent language throughout. Use bullet points for "
+            "experimental results and keep terminology precise. Only cite URLs that "
+            "appear in the evidence above."
         )
         return self._safe_generate(
             _messages_from_prompt(system_prompt, user_prompt),
             fallback="Section synthesis failed.",
         )
 
-    def run_expert_round(self, query: str) -> Dict[str, str]:
+    def run_expert_round(self, query: str) -> Tuple[Dict[str, str], TavilyResult]:
         """Fan-out a question to the configured experts, Tavily, and the local RAG."""
         evidence: Dict[str, str] = {}
         for expert in self.expert_manager.experts:
@@ -117,10 +123,17 @@ class InferenceEngine:
             )
             evidence[expert.name] = response.content
 
-        evidence["tavily"] = self.search_client.search(query)
+        tavily_result = self.search_client.search(query)
+        if tavily_result.sources:
+            evidence["tavily"] = "\n".join(
+                f"- {item.title} ({item.url})\n{item.content}"
+                for item in tavily_result.sources
+            )
+        else:
+            evidence["tavily"] = tavily_result.error or "Tavily search returned no results."
         rag_hits = self.rag_client.query(query)
         evidence["rag"] = "\n".join(rag_hits) if rag_hits else "Local RAG returned no matches."
-        return evidence
+        return evidence, tavily_result
 
     def collaborative_dialogue(
         self,

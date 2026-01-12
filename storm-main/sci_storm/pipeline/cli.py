@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 from typing import Optional
 
@@ -17,6 +18,7 @@ from ..engine.inference import GenerationContext
 from ..tools import KISTIMCPClient, LocalRAGClient, TavilySearchClient
 
 
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 try:
     sys.stdin.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
@@ -63,7 +65,48 @@ def _build_default_experts(goal: str) -> ExpertManager:
             "implementation pitfalls; surface code sketches when helpful."
         ),
     )
+    experts.register(
+        name="Policy Analyst",
+        focus="Policy and governance impact",
+        system_prompt=(
+            "Assess regulatory, ethical, and societal impacts of the research "
+            "topic, focusing on policy implications and compliance."
+        ),
+    )
+    experts.register(
+        name="Systems Architect",
+        focus="Scalable system design",
+        system_prompt=(
+            "Provide a scalable system design perspective, including deployment, "
+            "monitoring, and reliability constraints."
+        ),
+    )
     return experts
+
+
+def _load_experts_from_yaml(path: Path) -> ExpertManager:
+    import yaml
+
+    experts = ExpertManager()
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    for item in data.get("experts", []):
+        experts.register(
+            name=item.get("name", "Expert"),
+            focus=item.get("focus", ""),
+            system_prompt=item.get("system_prompt", ""),
+        )
+    return experts
+
+
+def _parse_outline_sections(outline: str) -> list[str]:
+    sections = []
+    for line in outline.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            title = stripped.lstrip("#").strip()
+            if title:
+                sections.append(title)
+    return sections or ["Executive Summary"]
 
 
 def _hydrate_engine(config: AppConfig, experts: ExpertManager) -> InferenceEngine:
@@ -89,6 +132,9 @@ def generate(
     output_path: Optional[Path] = typer.Option(
         Path("sci_storm_output.md"), help="Where to save the generated draft."
     ),
+    experts_path: Optional[Path] = typer.Option(
+        None, help="Path to experts.yaml defining expert personas."
+    ),
 ):
     """Start an interactive Sci-STORM session."""
     config = load_config(config_path or "config.yaml")
@@ -100,19 +146,24 @@ def generate(
     structural_requirements = Prompt.ask(
         "Structural requirements (e.g., IMRaD, bullet outline)", default="IMRaD"
     )
+    output_language = Prompt.ask("Output language", default="Korean")
     outline_format_hint = Prompt.ask(
         "Outline format/template hint (e.g., numbered sections, IMRaD, PRD)", default="Numbered sections"
     )
     console.print(Panel(f"[bold]Goal[/bold]: {goal}\n[bold]Style[/bold]: {document_style}\n"
                         f"[bold]Structure[/bold]: {structural_requirements}\n"
-                        f"[bold]Outline hint[/bold]: {outline_format_hint}",
+                        f"[bold]Outline hint[/bold]: {outline_format_hint}\n"
+                        f"[bold]Language[/bold]: {output_language}",
                         title="Review research setup"))
     if not Confirm.ask("Proceed with this goal?", default=True):
         console.print("Aborting: goal not confirmed.")
         raise typer.Exit(code=1)
 
     # HITL 2: Expert list confirmation
-    experts = _build_default_experts(goal)
+    if experts_path and experts_path.exists():
+        experts = _load_experts_from_yaml(experts_path)
+    else:
+        experts = _build_default_experts(goal)
     console.print(Panel(Markdown(experts.describe_team()), title="Proposed expert roster"))
     if Confirm.ask("Would you like to add another expert?", default=False):
         name = Prompt.ask("Expert name")
@@ -129,6 +180,7 @@ def generate(
         document_style=document_style,
         structural_requirements=structural_requirements,
         outline_format_hint=outline_format_hint,
+        output_language=output_language,
     )
 
     engine = _hydrate_engine(config, experts)
@@ -160,16 +212,29 @@ def generate(
             break
 
     # HITL 4: Final draft review (section synthesis with evidence)
-    evidence = engine.run_expert_round(goal)
+    evidence, tavily_result = engine.run_expert_round(goal)
     combined_notes = list(evidence.values()) + dialogue_notes
     human_final = Prompt.ask("Optional final human feedback before drafting", default="")
     if human_final:
         combined_notes.append(f"Human feedback: {human_final}")
 
-    section_response = engine.synthesize_section(
-        ctx=ctx, section_title="Executive Summary", notes=combined_notes
-    )
-    console.print(Panel(Markdown(section_response.content), title="Draft section"))
+    console.print(Panel("Tool usage report", title="External APIs"))
+    if tavily_result.sources:
+        console.print(f"Tavily search executed for query: {tavily_result.query}")
+        for source in tavily_result.sources:
+            console.print(f"- {source.title}: {source.url}")
+    else:
+        console.print(f"Tavily search skipped/failed: {tavily_result.error}")
+    console.print("MCP execution: not invoked in this session.")
+
+    sections = _parse_outline_sections(ctx.outline or "")
+    section_outputs = []
+    for section_title in sections:
+        response = engine.synthesize_section(
+            ctx=ctx, section_title=section_title, notes=combined_notes
+        )
+        section_outputs.append(f"## {section_title}\n\n{response.content}")
+        console.print(Panel(Markdown(response.content), title=f"Draft: {section_title}"))
 
     if output_path:
         transcript = [
@@ -178,17 +243,33 @@ def generate(
             f"## Goal",
             goal,
             "",
+            "## Language",
+            output_language,
+            "",
             "## Outline",
             outline_response.content,
             "",
             "## Expert Dialogues",
             "\n".join(dialogue_notes) if dialogue_notes else "No dialogue rounds were recorded.",
             "",
-            "## Draft Section",
-            section_response.content,
+            "## Tool Usage",
+            "### Tavily Sources",
+            "\n".join(
+                f"- {source.title}: {source.url}"
+                for source in tavily_result.sources
+            )
+            if tavily_result.sources
+            else f"Tavily search skipped/failed: {tavily_result.error}",
+            "### MCP",
+            "Not invoked in this session.",
+            "",
+            "## Draft",
+            "\n\n".join(section_outputs),
         ]
         output_path.write_text("\n".join(transcript), encoding="utf-8")
-        console.print(f"Draft (outline + dialogue + section) saved to [bold]{output_path}[/bold].")
+        console.print(
+            f"Draft (outline + dialogue + full sections) saved to [bold]{output_path}[/bold]."
+        )
 
     console.print("Review the draft above. Future steps will iterate section-by-section with the same workflow.")
 
