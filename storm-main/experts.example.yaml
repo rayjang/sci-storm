@@ -14,3 +14,13 @@ experts:
     system_prompt: |
       Identify computational constraints, data preprocessing needs, and
       implementation pitfalls; surface code sketches when helpful.
+  - name: Policy Analyst
+    focus: Policy and governance impact
+    system_prompt: |
+      Assess regulatory, ethical, and societal impacts of the research topic,
+      focusing on policy implications and compliance.
+  - name: Systems Architect
+    focus: Scalable system design
+    system_prompt: |
+      Provide a scalable system design perspective, including deployment,
+      monitoring, and reliability constraints.

@@ -71,11 +71,19 @@ The CLI will guide you through human-in-the-loop checkpoints:
 2. Review/extend the expert roster.
 3. Approve the collaboratively generated outline.
 4. Let experts debate across multiple dialogue rounds, inject human feedback, and synthesize a draft section from expert/Tavily/RAG/MCP evidence.
-5. Save a consolidated report (goal, outline, dialogues, tool usage, draft section) to the path you specify with `--output-path`.
+5. Save a consolidated report (goal, outline, dialogues, tool usage, full draft sections) to the path you specify with `--output-path`.
 
 You can rerun the command anytime after editing `config.yaml` or adding experts. Future iterations can extend section-by-section drafting using the same engine wiring.
 
-## 7) Troubleshooting
+## 7) Run the Web UI (Gradio)
+
+```bash
+python -m sci_storm.pipeline.web_app
+```
+
+The web UI provides an outline, expert dialogue, tool usage, and draft view similar to the CLI, and it loads experts from `experts.example.yaml` by default.
+
+## 8) Troubleshooting
 
 - **Backend errors**: ensure the model endpoint in `config.yaml` is reachable; adjust `max_retries` or `retry_backoff` if the local backend is slow to start.
 - **MCP connection errors**: verify the server is running and reachable at `mcp.server_url`; increase `mcp.max_retries` if startup is slow.

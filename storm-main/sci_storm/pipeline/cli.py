@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 from typing import Optional
 
@@ -17,6 +18,7 @@ from ..engine.inference import GenerationContext
 from ..tools import KISTIMCPClient, LocalRAGClient, TavilySearchClient
 
 
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 try:
     sys.stdin.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
@@ -63,6 +65,22 @@ def _build_default_experts(goal: str) -> ExpertManager:
             "implementation pitfalls; surface code sketches when helpful."
         ),
     )
+    experts.register(
+        name="Policy Analyst",
+        focus="Policy and governance impact",
+        system_prompt=(
+            "Assess regulatory, ethical, and societal impacts of the research "
+            "topic, focusing on policy implications and compliance."
+        ),
+    )
+    experts.register(
+        name="Systems Architect",
+        focus="Scalable system design",
+        system_prompt=(
+            "Provide a scalable system design perspective, including deployment, "
+            "monitoring, and reliability constraints."
+        ),
+    )
     return experts
 
 
@@ -78,6 +96,17 @@ def _load_experts_from_yaml(path: Path) -> ExpertManager:
             system_prompt=item.get("system_prompt", ""),
         )
     return experts
+
+
+def _parse_outline_sections(outline: str) -> list[str]:
+    sections = []
+    for line in outline.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            title = stripped.lstrip("#").strip()
+            if title:
+                sections.append(title)
+    return sections or ["Executive Summary"]
 
 
 def _hydrate_engine(config: AppConfig, experts: ExpertManager) -> InferenceEngine:
@@ -198,10 +227,14 @@ def generate(
         console.print(f"Tavily search skipped/failed: {tavily_result.error}")
     console.print("MCP execution: not invoked in this session.")
 
-    section_response = engine.synthesize_section(
-        ctx=ctx, section_title="Executive Summary", notes=combined_notes
-    )
-    console.print(Panel(Markdown(section_response.content), title="Draft section"))
+    sections = _parse_outline_sections(ctx.outline or "")
+    section_outputs = []
+    for section_title in sections:
+        response = engine.synthesize_section(
+            ctx=ctx, section_title=section_title, notes=combined_notes
+        )
+        section_outputs.append(f"## {section_title}\n\n{response.content}")
+        console.print(Panel(Markdown(response.content), title=f"Draft: {section_title}"))
 
     if output_path:
         transcript = [
@@ -230,11 +263,13 @@ def generate(
             "### MCP",
             "Not invoked in this session.",
             "",
-            "## Draft Section",
-            section_response.content,
+            "## Draft",
+            "\n\n".join(section_outputs),
         ]
         output_path.write_text("\n".join(transcript), encoding="utf-8")
-        console.print(f"Draft (outline + dialogue + section) saved to [bold]{output_path}[/bold].")
+        console.print(
+            f"Draft (outline + dialogue + full sections) saved to [bold]{output_path}[/bold]."
+        )
 
     console.print("Review the draft above. Future steps will iterate section-by-section with the same workflow.")
 
