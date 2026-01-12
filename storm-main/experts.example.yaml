@@ -1,0 +1,51 @@
+experts:
+  - name: 학술 연구자
+    focus: 심층 학술 분석
+    role: 심층 학술 분석 및 연구 방법론 전문가
+    perspective: 학술적 관점에서 주제를 분석하고 관련 연구와 이론을 정리합니다.
+    question_focus:
+      - 주요 학술 연구는?
+      - 이론적 프레임워크는?
+      - 연구 방법론의 한계는?
+  - name: 산업 실무자
+    focus: 산업 적용
+    role: 산업 현장 및 실무 적용 전문가
+    perspective: 실제 적용 사례와 시장 동향을 중심으로 분석합니다.
+    question_focus:
+      - 실제 산업 적용은?
+      - 성공적인 구현 사례는?
+      - 비즈니스 도전과제는?
+  - name: 기술 전문가
+    focus: 기술 구현
+    role: 기술적 구현 및 아키텍처 전문가
+    perspective: 핵심 기술 원리와 확장성을 점검합니다.
+    question_focus:
+      - 핵심 기술 원리는?
+      - 기술적 장단점은?
+      - 확장성과 성능 고려사항은?
+  - name: 비평가
+    focus: 비판적 분석
+    role: 비판적 분석 및 대안 관점 전문가
+    perspective: 잠재적 위험과 한계를 강조합니다.
+    question_focus:
+      - 한계와 문제점은?
+      - 비판적 우려사항은?
+      - 윤리적 고려사항은?
+  - name: 미래학자
+    focus: 미래 전망
+    role: 미래 동향 및 예측 전문가
+    perspective: 장기적 변화와 미래 시나리오를 제시합니다.
+    question_focus:
+      - 향후 발전 방향은?
+      - 미래 예상 변화는?
+      - 장기적 영향과 기회는?
+  - name: Policy Analyst
+    focus: Policy and governance impact
+    system_prompt: |
+      Assess regulatory, ethical, and societal impacts of the research topic,
+      focusing on policy implications and compliance.
+  - name: Systems Architect
+    focus: Scalable system design
+    system_prompt: |
+      Provide a scalable system design perspective, including deployment,
+      monitoring, and reliability constraints.
