@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import sys
 
 import gradio as gr
 
@@ -10,6 +12,13 @@ from ..engine import BackendAdapter, InferenceEngine
 from ..engine.inference import GenerationContext
 from ..tools import KISTIMCPClient, LocalRAGClient, TavilySearchClient
 from .cli import _load_experts_from_yaml, _load_local_docs, _parse_outline_sections
+
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+try:
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 
 def _hydrate_engine(config_path: Path, experts: ExpertManager) -> InferenceEngine:

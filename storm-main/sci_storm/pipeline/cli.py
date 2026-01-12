@@ -90,10 +90,27 @@ def _load_experts_from_yaml(path: Path) -> ExpertManager:
     experts = ExpertManager()
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     for item in data.get("experts", []):
+        system_prompt = item.get("system_prompt", "")
+        if not system_prompt:
+            role = item.get("role", "")
+            perspective = item.get("perspective", "")
+            question_focus = item.get("question_focus", [])
+            system_prompt = "\n".join(
+                line
+                for line in [
+                    f"Role: {role}" if role else "",
+                    f"Perspective: {perspective}" if perspective else "",
+                    "Key questions: " + ", ".join(question_focus)
+                    if question_focus
+                    else "",
+                    "Always respond in the requested output language.",
+                ]
+                if line
+            )
         experts.register(
             name=item.get("name", "Expert"),
             focus=item.get("focus", ""),
-            system_prompt=item.get("system_prompt", ""),
+            system_prompt=system_prompt,
         )
     return experts
 

@@ -66,6 +66,9 @@ python -m sci_storm.pipeline.cli generate --config-path config.yaml \
   --experts-path experts.example.yaml
 ```
 
+The expert YAML can include `system_prompt`, or you can define `role`, `perspective`,
+and `question_focus` to auto-compose prompts.
+
 The CLI will guide you through human-in-the-loop checkpoints:
 1. Confirm document style (freeform), research goal, structural requirements, outline format hint, and output language.
 2. Review/extend the expert roster.
